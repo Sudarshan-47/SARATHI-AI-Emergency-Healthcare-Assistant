@@ -1,0 +1,17 @@
+packages:
+  "framer-motion": "For cinematic animations, ECG lines, and pulsing mic effects"
+  "react-hook-form": "For robust login form state management"
+  "@hookform/resolvers": "For Zod validation with react-hook-form"
+
+images:
+  - path: "artifacts/sarathi-ai/public/images/hero-bg.png"
+    description: "Cinematic deep navy dark background with subtle glowing electric red and cyan abstract medical pulse waves, futuristic lighting, high-end 3D render"
+    aspect_ratio: "16:9"
+  - path: "artifacts/sarathi-ai/public/images/sarathi-logo.png"
+    description: "Minimalist futuristic medical cross intertwined with a heartbeat pulse line, cyan and electric red on transparent dark background, clean UI logo"
+    aspect_ratio: "1:1"
+
+notes:
+  - Application uses Web Speech API for real voice interaction; works best in Chrome/Edge.
+  - Generates external WhatsApp links (wa.me) for simulated parent alerts.
+  - Utilizes React Query hooks from @workspace/api-client-react.
