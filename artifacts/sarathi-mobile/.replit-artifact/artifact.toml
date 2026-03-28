@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/sarathi-mobile/"
+title = "SARATHI AI Mobile"
+version = "1.0.0"
+id = "artifacts/sarathi-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/sarathi-mobile/" ]
+localPort = 22848
+
+[services.development]
+run = "pnpm --filter @workspace/sarathi-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sarathi-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/sarathi-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "22848"
+BASE_PATH = "/sarathi-mobile/"

@@ -91,6 +91,28 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/sarathi-ai` (`@workspace/sarathi-ai`)
+
+React + Vite web app for SARATHI AI Emergency Healthcare Assistant.
+- Cinematic dark navy/red/cyan UI, login with language picker (English, Hindi, Telugu)
+- Dashboard with real mic (Web Speech API), AI triage chat, severity badges, ECG animation
+- WhatsApp parent alerts, 6 Hyderabad demo hospitals
+- Key files: `src/pages/login.tsx`, `src/pages/dashboard.tsx`, `src/hooks/use-speech.ts`
+
+### `artifacts/sarathi-mobile` (`@workspace/sarathi-mobile`)
+
+Expo React Native mobile app for SARATHI AI.
+- Stack navigation: `app/index.tsx` (login) → `app/dashboard.tsx` (main)
+- Features: language selection, emergency profile setup, mic voice input (Web Speech API on web, expo-speech for native TTS), AI triage chat, severity card with first-aid steps, hospital list, WhatsApp alerts
+- Components: `AnimatedMicButton`, `ChatBubble`, `SeverityCard`
+- Context: `UserContext` (AsyncStorage-backed user profile)
+- Colors: `constants/colors.ts` (SARATHI dark navy/red/cyan theme)
+- Connects to `/api/sarathi/triage`, `/api/sarathi/followup`, `/api/sarathi/hospitals` on API server
+
+### `artifacts/api-server/src/routes/sarathi.ts`
+
+Triage engine: multilingual keyword detection (EN/HI/TE), severity scoring (LOW/MEDIUM/HIGH/CRITICAL), confidence scoring, first-aid guidance in 3 languages, follow-up questions, hospitals endpoint (6 Hyderabad hospitals).
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
