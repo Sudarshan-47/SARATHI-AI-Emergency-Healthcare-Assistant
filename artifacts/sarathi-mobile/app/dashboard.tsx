@@ -114,45 +114,113 @@ function speakText(text: string, language: Language) {
   });
 }
 
-// Simple web-based speech recognition hook
-function useSpeechInput(language: Language, onResult: (text: string) => void) {
+// Language BCP-47 codes with fallbacks for browser speech recognition
+const LANG_CODES: Record<Language, string[]> = {
+  english: ['en-IN', 'en-GB', 'en-US'],
+  hindi: ['hi-IN', 'hi'],
+  telugu: ['te-IN', 'te'],
+};
+
+// Speech recognition hook — works on web preview; shows guidance on native
+function useSpeechInput(
+  language: Language,
+  onResult: (text: string) => void,
+  onError: (msg: string) => void,
+) {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const langRef = useRef(language);
 
-  const LANG_CODE: Record<Language, string> = {
-    english: 'en-IN',
-    hindi: 'hi-IN',
-    telugu: 'te-IN',
-  };
+  // Always keep langRef in sync so start() uses the latest language
+  langRef.current = language;
+
+  const isSpeechSupported = Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    !!(
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition
+    );
 
   const start = () => {
     if (Platform.OS !== 'web') {
-      setIsListening(false);
+      onError('Voice input is available in the web preview. On your phone, please type your symptoms below.');
       return;
     }
+
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) return;
-    const r = new SR();
-    r.lang = LANG_CODE[language];
-    r.continuous = false;
-    r.interimResults = false;
-    r.onresult = (e: any) => {
-      const t = e.results[0][0].transcript;
-      if (t) onResult(t);
+    if (!SR) {
+      onError('Your browser does not support voice input. Please use Chrome and type your symptoms.');
+      return;
+    }
+
+    // Abort any previous session cleanly
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+    }
+
+    const fallbacks = LANG_CODES[langRef.current];
+
+    const tryRecognition = (langIndex: number) => {
+      const r = new SR();
+      r.lang = fallbacks[langIndex];
+      r.continuous = false;
+      // CRITICAL: interimResults: false prevents Chrome firing onend before
+      // delivering the final result for non-Latin scripts (Telugu, Hindi)
+      r.interimResults = false;
+      r.maxAlternatives = 3;
+
+      r.onstart = () => setIsListening(true);
+
+      r.onresult = (e: any) => {
+        // Pick highest-confidence alternative
+        let best = '';
+        let bestConf = 0;
+        for (let i = 0; i < e.results.length; i++) {
+          for (let j = 0; j < e.results[i].length; j++) {
+            if (e.results[i][j].confidence > bestConf) {
+              bestConf = e.results[i][j].confidence;
+              best = e.results[i][j].transcript;
+            }
+          }
+        }
+        if (best) onResult(best);
+      };
+
+      r.onerror = (e: any) => {
+        setIsListening(false);
+        if (e.error === 'no-speech') {
+          onError('No speech detected — please speak clearly and try again.');
+          return;
+        }
+        if (e.error === 'not-allowed') {
+          onError('Microphone access denied. Allow mic permission in your browser settings.');
+          return;
+        }
+        // network error often means the lang code isn't supported — try fallback
+        if ((e.error === 'network' || e.error === 'language-not-supported') && langIndex + 1 < fallbacks.length) {
+          tryRecognition(langIndex + 1);
+          return;
+        }
+        onError('Voice recognition failed. Please type your symptoms.');
+      };
+
+      r.onend = () => setIsListening(false);
+
+      recognitionRef.current = r;
+      try { r.start(); } catch { setIsListening(false); }
     };
-    r.onend = () => setIsListening(false);
-    r.onerror = () => setIsListening(false);
-    recognitionRef.current = r;
-    r.start();
-    setIsListening(true);
+
+    tryRecognition(0);
   };
 
   const stop = () => {
-    recognitionRef.current?.stop?.();
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+    }
     setIsListening(false);
   };
 
-  return { isListening, start, stop };
+  return { isListening, isSpeechSupported, start, stop };
 }
 
 export default function Dashboard() {
@@ -165,11 +233,19 @@ export default function Dashboard() {
   const [triage, setTriage] = useState<TriageResult | null>(null);
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [showPanel, setShowPanel] = useState<'chat' | 'result'>('chat');
+  const [speechError, setSpeechError] = useState('');
   const firstSymptomsRef = useRef('');
 
-  const { isListening, start: startListening, stop: stopListening } = useSpeechInput(
+  const { isListening, isSpeechSupported, start: startListening, stop: stopListening } = useSpeechInput(
     user?.language ?? 'english',
-    (text) => setInput(prev => prev ? `${prev} ${text}` : text)
+    (text) => {
+      setSpeechError('');
+      setInput(prev => prev ? `${prev} ${text}` : text);
+    },
+    (msg) => {
+      setSpeechError(msg);
+      setTimeout(() => setSpeechError(''), 6000);
+    },
   );
 
   const makeId = () => Date.now().toString() + Math.random().toString(36).substr(2, 5);
@@ -321,19 +397,38 @@ export default function Dashboard() {
                     disabled={isLoading}
                   />
                   <Text style={styles.emptyTitle}>
-                    {isListening ? 'Listening...' : `Speak in ${user.language}`}
+                    {isListening
+                      ? `Listening in ${user.language}…`
+                      : isSpeechSupported
+                        ? `Tap mic or type in ${user.language}`
+                        : `Type your symptoms below`}
                   </Text>
-                  <Text style={styles.emptySub}>
-                    Describe your symptoms clearly.{'\n'}SARATHI will assess severity and guide you.
-                  </Text>
+                  {speechError ? (
+                    <View style={styles.speechErrorBox}>
+                      <Ionicons name="warning-outline" size={14} color={C.red} />
+                      <Text style={styles.speechErrorText}>{speechError}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.emptySub}>
+                      {isSpeechSupported
+                        ? `Describe symptoms in ${user.language}.\nSARATHI will assess severity and guide you.`
+                        : `Type your symptoms in ${user.language} below.\nSARATHI will assess severity and guide you.`}
+                    </Text>
+                  )}
                 </View>
               }
               ListFooterComponent={isLoading ? <TypingIndicator /> : null}
             />
 
             {/* Input */}
+            {!!speechError && messages.length > 0 && (
+              <View style={styles.speechErrorBanner}>
+                <Ionicons name="warning-outline" size={13} color={C.red} />
+                <Text style={styles.speechErrorBannerText} numberOfLines={2}>{speechError}</Text>
+              </View>
+            )}
             <View style={[styles.inputBar, { paddingBottom: insets.bottom + 12 }]}>
-              {messages.length > 0 && (
+              {isSpeechSupported && (
                 <Pressable style={styles.micInline} onPress={toggleMic} disabled={isLoading}>
                   <Ionicons
                     name={isListening ? 'mic' : 'mic-outline'}
@@ -346,7 +441,7 @@ export default function Dashboard() {
                 style={styles.input}
                 value={input}
                 onChangeText={setInput}
-                placeholder={isListening ? 'Listening...' : 'Type or speak symptoms...'}
+                placeholder={isListening ? `Listening in ${user.language}…` : `Type in ${user.language}…`}
                 placeholderTextColor={C.grayDark}
                 onSubmitEditing={() => send()}
                 returnKeyType="send"
@@ -416,6 +511,18 @@ const styles = StyleSheet.create({
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 40 },
   emptyTitle: { fontSize: 18, fontFamily: 'Inter_600SemiBold', color: C.white, marginTop: 20, textAlign: 'center' },
   emptySub: { fontSize: 14, color: C.gray, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 10, lineHeight: 20 },
+  speechErrorBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 6,
+    backgroundColor: C.redDim + '44', borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: C.red + '40', marginTop: 12, maxWidth: 280,
+  },
+  speechErrorText: { flex: 1, color: C.red, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17 },
+  speechErrorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: C.redDim + '44', borderTopWidth: 1, borderTopColor: C.red + '30',
+    paddingHorizontal: 14, paddingVertical: 8,
+  },
+  speechErrorBannerText: { flex: 1, color: C.red, fontFamily: 'Inter_400Regular', fontSize: 12 },
   inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
     paddingHorizontal: 12, paddingTop: 10,

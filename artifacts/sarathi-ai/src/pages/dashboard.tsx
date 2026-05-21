@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [textInput, setTextInput] = useState('');
   const [triageResult, setTriageResult] = useState<TriageResponse | null>(null);
   const [showHospitals, setShowHospitals] = useState(false);
+  const [speechError, setSpeechError] = useState('');
   
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -47,7 +48,22 @@ export default function Dashboard() {
   const { isListening, startListening, stopListening } = useSpeechRecognition({
     languageCode: langCode,
     onResult: (text) => {
+      setSpeechError('');
       setTextInput(prev => prev ? `${prev} ${text}` : text);
+    },
+    onError: (err) => {
+      if (err === 'no-speech') {
+        setSpeechError('No speech detected. Try again.');
+      } else if (err === 'not-allowed') {
+        setSpeechError('Microphone access denied. Please allow mic access in your browser.');
+      } else if (err === 'language-not-supported') {
+        setSpeechError(`Voice recognition for ${user?.language ?? 'this language'} is limited in your browser. Please type your symptoms.`);
+      } else if (err === 'network') {
+        setSpeechError('Network error. Check your connection and try again.');
+      } else {
+        setSpeechError('Voice recognition failed. Please type your symptoms.');
+      }
+      setTimeout(() => setSpeechError(''), 5000);
     }
   });
 
@@ -185,13 +201,25 @@ export default function Dashboard() {
               onClick={isListening ? stopListening : startListening}
               disabled={triageMutation.isPending || followupMutation.isPending}
             />
+
+            {speechError && (
+              <p className="text-xs text-primary/90 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 mb-2 text-center max-w-md">
+                ⚠️ {speechError}
+              </p>
+            )}
+
+            {isListening && (
+              <p className="text-xs text-accent mb-2 animate-pulse">
+                🎤 Listening in {user?.language}… speak clearly
+              </p>
+            )}
             
             <div className="w-full relative flex items-center">
               <input
                 value={textInput}
                 onChange={(e) => setTextInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={isListening ? "Listening..." : "Type your symptoms here..."}
+                placeholder={isListening ? `Listening in ${user?.language}…` : "Type your symptoms or tap the mic above"}
                 className="w-full bg-card/50 border border-white/10 rounded-2xl pl-6 pr-14 py-4 text-white placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all shadow-inner"
               />
               <button 

@@ -51,36 +51,30 @@ function getBestVoice(langCode: string): Promise<SpeechSynthesisVoice | null> {
 
       const priorities = VOICE_PRIORITY[langCode] || [];
 
-      // 1. Try exact priority names
       for (const name of priorities) {
         const v = voices.find(v => v.name === name);
         if (v) return v;
       }
 
-      // 2. Try partial name match from priority list
       for (const name of priorities) {
         const v = voices.find(v => v.name.toLowerCase().includes(name.toLowerCase().split(' ')[1] || ''));
         if (v) return v;
       }
 
-      // 3. Try exact lang match (prefer online/neural voices — they have "Online" in the name)
       const baseLang = langCode.split('-')[0];
       const online = voices.find(v => v.lang === langCode && v.name.toLowerCase().includes('online'));
       if (online) return online;
 
-      // 4. Google voices for the lang
       const google = voices.find(v => v.lang === langCode && v.name.toLowerCase().includes('google'));
       if (google) return google;
 
-      // 5. Any voice for the lang
       const any = voices.find(v => v.lang === langCode);
       if (any) return any;
 
-      // 6. Base language match (e.g. 'hi' for 'hi-IN')
+      // Try base language code (e.g., 'te' for 'te-IN', 'hi' for 'hi-IN')
       const base = voices.find(v => v.lang.startsWith(baseLang));
       if (base) return base;
 
-      // 7. Fall back to any English google voice
       return voices.find(v => v.name.toLowerCase().includes('google')) || voices[0] || null;
     };
 
@@ -88,13 +82,11 @@ function getBestVoice(langCode: string): Promise<SpeechSynthesisVoice | null> {
     if (voices.length > 0) {
       resolve(tryFind());
     } else {
-      // Voices not loaded yet - listen for the event
       const handler = () => {
         window.speechSynthesis.removeEventListener('voiceschanged', handler);
         resolve(tryFind());
       };
       window.speechSynthesis.addEventListener('voiceschanged', handler);
-      // Safety timeout
       setTimeout(() => {
         window.speechSynthesis.removeEventListener('voiceschanged', handler);
         resolve(tryFind());
@@ -103,10 +95,23 @@ function getBestVoice(langCode: string): Promise<SpeechSynthesisVoice | null> {
   });
 }
 
+// Language code fallback chains — Chrome sometimes needs the base code for regional languages
+const LANG_FALLBACKS: Record<string, string[]> = {
+  'te-IN': ['te-IN', 'te'],
+  'hi-IN': ['hi-IN', 'hi'],
+  'en-IN': ['en-IN', 'en-GB', 'en-US'],
+};
+
 export function useSpeechRecognition({ languageCode, onResult, onError }: SpeechHookProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
   const recognitionRef = useRef<any>(null);
+  const langRef = useRef(languageCode);
+
+  // Keep lang ref up to date so startListening always uses latest value
+  useEffect(() => {
+    langRef.current = languageCode;
+  }, [languageCode]);
 
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -114,50 +119,106 @@ export function useSpeechRecognition({ languageCode, onResult, onError }: Speech
       setIsSupported(false);
       return;
     }
+    setIsSupported(true);
+  }, []);
 
-    recognitionRef.current = new SpeechRecognition();
-    const recognition = recognitionRef.current;
+  const startListening = useCallback(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setIsSupported(false);
+      return;
+    }
 
+    // Stop any existing session first
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+
+    // CRITICAL FIX: interimResults: false prevents Chrome from firing onend
+    // before delivering the final result for non-Latin scripts (Telugu, Hindi)
     recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = languageCode;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 3;
+
+    // Use fallback chain for better language support
+    const fallbacks = LANG_FALLBACKS[langRef.current] || [langRef.current];
+    recognition.lang = fallbacks[0];
 
     recognition.onstart = () => setIsListening(true);
 
     recognition.onresult = (event: any) => {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+      // Pick the best alternative (highest confidence)
+      let bestTranscript = '';
+      let bestConfidence = 0;
+
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        for (let j = 0; j < result.length; j++) {
+          if (result[j].confidence > bestConfidence) {
+            bestConfidence = result[j].confidence;
+            bestTranscript = result[j].transcript;
+          }
         }
       }
-      if (finalTranscript) onResult(finalTranscript);
+
+      if (bestTranscript) {
+        onResult(bestTranscript);
+      }
     };
 
     recognition.onerror = (event: any) => {
       setIsListening(false);
-      if (onError) onError(event.error);
+
+      const err = event.error;
+
+      // 'no-speech' is not really an error — just silence
+      if (err === 'no-speech') {
+        if (onError) onError('no-speech');
+        return;
+      }
+
+      // 'network' means the language may not be supported — try base lang code
+      if (err === 'network' && fallbacks.length > 1) {
+        const fallbackRecognition = new SpeechRecognition();
+        recognitionRef.current = fallbackRecognition;
+        fallbackRecognition.continuous = false;
+        fallbackRecognition.interimResults = false;
+        fallbackRecognition.maxAlternatives = 3;
+        fallbackRecognition.lang = fallbacks[1]; // e.g., 'te' instead of 'te-IN'
+
+        fallbackRecognition.onstart = () => setIsListening(true);
+        fallbackRecognition.onresult = recognition.onresult;
+        fallbackRecognition.onerror = () => {
+          setIsListening(false);
+          if (onError) onError('language-not-supported');
+        };
+        fallbackRecognition.onend = () => setIsListening(false);
+
+        try { fallbackRecognition.start(); } catch {}
+        return;
+      }
+
+      if (onError) onError(err);
     };
 
     recognition.onend = () => setIsListening(false);
 
-    return () => { try { recognition.stop(); } catch {} };
-  }, [languageCode, onResult, onError]);
-
-  const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
-      try {
-        recognitionRef.current.lang = languageCode;
-        recognitionRef.current.start();
-      } catch (e) {}
+    try {
+      recognition.start();
+    } catch (e) {
+      setIsListening(false);
     }
-  }, [languageCode, isListening]);
+  }, [onResult, onError]);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
+    if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
+      setIsListening(false);
     }
-  }, [isListening]);
+  }, []);
 
   return { isListening, isSupported, startListening, stopListening };
 }
@@ -177,8 +238,6 @@ export function useSpeechSynthesis() {
 
     if (bestVoice) {
       utterance.voice = bestVoice;
-      // Neural/online voices sound best at default settings
-      // Slightly slower for medical instructions so they are clear
       utterance.rate = bestVoice.name.toLowerCase().includes('online') ? 0.92 : 0.88;
       utterance.pitch = 1.05;
       utterance.volume = 1.0;
