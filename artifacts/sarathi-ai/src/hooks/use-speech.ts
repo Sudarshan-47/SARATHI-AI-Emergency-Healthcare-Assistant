@@ -13,6 +13,13 @@ type SpeechHookProps = {
   onError?: (err: string) => void;
 };
 
+// Detect iOS/Safari — needs special handling (abort() crashes, stop() needed instead)
+function isIOSSafari(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 // Priority voice lists - Google Neural voices sound like real humans in Chrome
 const VOICE_PRIORITY: Record<string, string[]> = {
   'en-IN': [
@@ -71,7 +78,6 @@ function getBestVoice(langCode: string): Promise<SpeechSynthesisVoice | null> {
       const any = voices.find(v => v.lang === langCode);
       if (any) return any;
 
-      // Try base language code (e.g., 'te' for 'te-IN', 'hi' for 'hi-IN')
       const base = voices.find(v => v.lang.startsWith(baseLang));
       if (base) return base;
 
@@ -95,7 +101,7 @@ function getBestVoice(langCode: string): Promise<SpeechSynthesisVoice | null> {
   });
 }
 
-// Language code fallback chains — Chrome sometimes needs the base code for regional languages
+// Language code fallback chains
 const LANG_FALLBACKS: Record<string, string[]> = {
   'te-IN': ['te-IN', 'te'],
   'hi-IN': ['hi-IN', 'hi'],
@@ -107,111 +113,107 @@ export function useSpeechRecognition({ languageCode, onResult, onError }: Speech
   const [isSupported, setIsSupported] = useState(true);
   const recognitionRef = useRef<any>(null);
   const langRef = useRef(languageCode);
+  const ios = useRef(false);
 
-  // Keep lang ref up to date so startListening always uses latest value
   useEffect(() => {
     langRef.current = languageCode;
   }, [languageCode]);
 
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setIsSupported(false);
-      return;
-    }
-    setIsSupported(true);
+    ios.current = isIOSSafari();
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    setIsSupported(!!SR);
+  }, []);
+
+  const buildRecognition = useCallback((langCode: string, onResultCb: (text: string) => void, onErrCb: (e: any) => void) => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new SR();
+    r.lang = langCode;
+    r.continuous = false;
+    // CRITICAL: interimResults: false prevents Chrome/Safari firing onend
+    // before delivering the final result for non-Latin scripts (Telugu, Hindi)
+    r.interimResults = false;
+    r.maxAlternatives = 3;
+    r.onstart = () => setIsListening(true);
+    r.onresult = onResultCb;
+    r.onerror = onErrCb;
+    r.onend = () => setIsListening(false);
+    return r;
   }, []);
 
   const startListening = useCallback(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
       setIsSupported(false);
       return;
     }
 
-    // Stop any existing session first
+    // iOS Safari: use stop() not abort() — abort() crashes the recognition engine
     if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch {}
+      try {
+        if (ios.current) {
+          recognitionRef.current.stop();
+        } else {
+          recognitionRef.current.abort();
+        }
+      } catch {}
+      recognitionRef.current = null;
     }
 
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
+    const doStart = () => {
+      const fallbacks = LANG_FALLBACKS[langRef.current] || [langRef.current];
 
-    // CRITICAL FIX: interimResults: false prevents Chrome from firing onend
-    // before delivering the final result for non-Latin scripts (Telugu, Hindi)
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 3;
-
-    // Use fallback chain for better language support
-    const fallbacks = LANG_FALLBACKS[langRef.current] || [langRef.current];
-    recognition.lang = fallbacks[0];
-
-    recognition.onstart = () => setIsListening(true);
-
-    recognition.onresult = (event: any) => {
-      // Pick the best alternative (highest confidence)
-      let bestTranscript = '';
-      let bestConfidence = 0;
-
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        for (let j = 0; j < result.length; j++) {
-          if (result[j].confidence > bestConfidence) {
-            bestConfidence = result[j].confidence;
-            bestTranscript = result[j].transcript;
+      const handleResult = (event: any) => {
+        let bestTranscript = '';
+        let bestConfidence = 0;
+        for (let i = 0; i < event.results.length; i++) {
+          const result = event.results[i];
+          for (let j = 0; j < result.length; j++) {
+            if (result[j].confidence > bestConfidence) {
+              bestConfidence = result[j].confidence;
+              bestTranscript = result[j].transcript;
+            }
           }
         }
-      }
+        if (bestTranscript) onResult(bestTranscript);
+      };
 
-      if (bestTranscript) {
-        onResult(bestTranscript);
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      setIsListening(false);
-
-      const err = event.error;
-
-      // 'no-speech' is not really an error — just silence
-      if (err === 'no-speech') {
-        if (onError) onError('no-speech');
-        return;
-      }
-
-      // 'network' means the language may not be supported — try base lang code
-      if (err === 'network' && fallbacks.length > 1) {
-        const fallbackRecognition = new SpeechRecognition();
-        recognitionRef.current = fallbackRecognition;
-        fallbackRecognition.continuous = false;
-        fallbackRecognition.interimResults = false;
-        fallbackRecognition.maxAlternatives = 3;
-        fallbackRecognition.lang = fallbacks[1]; // e.g., 'te' instead of 'te-IN'
-
-        fallbackRecognition.onstart = () => setIsListening(true);
-        fallbackRecognition.onresult = recognition.onresult;
-        fallbackRecognition.onerror = () => {
+      const tryLang = (idx: number) => {
+        const handleError = (event: any) => {
           setIsListening(false);
-          if (onError) onError('language-not-supported');
+          const err = event.error;
+
+          if (err === 'no-speech') {
+            if (onError) onError('no-speech');
+            return;
+          }
+          if (err === 'not-allowed') {
+            if (onError) onError('not-allowed');
+            return;
+          }
+          // network / language-not-supported — try next fallback (skip on iOS, causes double crash)
+          if (!ios.current && (err === 'network' || err === 'language-not-supported') && idx + 1 < fallbacks.length) {
+            setTimeout(() => tryLang(idx + 1), 100);
+            return;
+          }
+          if (onError) onError(err);
         };
-        fallbackRecognition.onend = () => setIsListening(false);
 
-        try { fallbackRecognition.start(); } catch {}
-        return;
-      }
+        const r = buildRecognition(fallbacks[idx], handleResult, handleError);
+        recognitionRef.current = r;
+        try { r.start(); } catch { setIsListening(false); }
+      };
 
-      if (onError) onError(err);
+      tryLang(0);
     };
 
-    recognition.onend = () => setIsListening(false);
-
-    try {
-      recognition.start();
-    } catch (e) {
-      setIsListening(false);
+    // iOS Safari needs a small gap between stop() and start() to avoid AbortError
+    if (ios.current) {
+      setTimeout(doStart, 200);
+    } else {
+      doStart();
     }
-  }, [onResult, onError]);
+  }, [onResult, onError, buildRecognition]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {

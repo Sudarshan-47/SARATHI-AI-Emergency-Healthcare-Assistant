@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Linking,
   Platform,
@@ -234,7 +235,10 @@ export default function Dashboard() {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
   const [showPanel, setShowPanel] = useState<'chat' | 'result'>('chat');
   const [speechError, setSpeechError] = useState('');
+  const [showKeyboardHint, setShowKeyboardHint] = useState(false);
   const firstSymptomsRef = useRef('');
+  const inputRef = useRef<TextInput>(null);
+  const hintBounce = useRef(new Animated.Value(0)).current;
 
   const { isListening, isSpeechSupported, start: startListening, stop: stopListening } = useSpeechInput(
     user?.language ?? 'english',
@@ -304,7 +308,25 @@ export default function Dashboard() {
     }
   };
 
+  const startKeyboardHint = () => {
+    setShowKeyboardHint(true);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(hintBounce, { toValue: -10, duration: 400, useNativeDriver: true }),
+        Animated.timing(hintBounce, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ])
+    ).start();
+    setTimeout(() => setShowKeyboardHint(false), 6000);
+  };
+
   const toggleMic = () => {
+    if (Platform.OS !== 'web') {
+      // Native: Web Speech API unavailable — focus keyboard so user can use native mic
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      inputRef.current?.focus();
+      startKeyboardHint();
+      return;
+    }
     if (isListening) stopListening();
     else startListening();
   };
@@ -395,24 +417,36 @@ export default function Dashboard() {
                     isListening={isListening}
                     onPress={toggleMic}
                     disabled={isLoading}
+                    isNative={Platform.OS !== 'web'}
                   />
                   <Text style={styles.emptyTitle}>
-                    {isListening
-                      ? `Listening in ${user.language}…`
-                      : isSpeechSupported
-                        ? `Tap mic or type in ${user.language}`
-                        : `Type your symptoms below`}
+                    {Platform.OS !== 'web'
+                      ? `Tap mic → use keyboard mic`
+                      : isListening
+                        ? `Listening in ${user.language}…`
+                        : `Tap mic or type in ${user.language}`}
                   </Text>
                   {speechError ? (
                     <View style={styles.speechErrorBox}>
                       <Ionicons name="warning-outline" size={14} color={C.red} />
                       <Text style={styles.speechErrorText}>{speechError}</Text>
                     </View>
+                  ) : showKeyboardHint && Platform.OS !== 'web' ? (
+                    <View style={styles.keyboardHintBox}>
+                      <Ionicons name="information-circle-outline" size={15} color={C.cyan} />
+                      <Text style={styles.keyboardHintText}>
+                        Your keyboard just opened — tap the{' '}
+                        <Text style={{ color: C.cyan }}>🎤 mic icon</Text> on the keyboard to speak in {user.language}
+                      </Text>
+                      <Animated.View style={{ transform: [{ translateY: hintBounce }] }}>
+                        <Ionicons name="arrow-down" size={16} color={C.cyan} />
+                      </Animated.View>
+                    </View>
                   ) : (
                     <Text style={styles.emptySub}>
-                      {isSpeechSupported
-                        ? `Describe symptoms in ${user.language}.\nSARATHI will assess severity and guide you.`
-                        : `Type your symptoms in ${user.language} below.\nSARATHI will assess severity and guide you.`}
+                      {Platform.OS !== 'web'
+                        ? `Tap the mic button above, then use\nthe 🎤 on your keyboard to speak.`
+                        : `Describe symptoms in ${user.language}.\nSARATHI will assess severity and guide you.`}
                     </Text>
                   )}
                 </View>
@@ -428,16 +462,23 @@ export default function Dashboard() {
               </View>
             )}
             <View style={[styles.inputBar, { paddingBottom: insets.bottom + 12 }]}>
-              {isSpeechSupported && (
-                <Pressable style={styles.micInline} onPress={toggleMic} disabled={isLoading}>
-                  <Ionicons
-                    name={isListening ? 'mic' : 'mic-outline'}
-                    size={22}
-                    color={isListening ? C.red : C.cyan}
-                  />
-                </Pressable>
-              )}
+              <Pressable
+                style={styles.micInline}
+                onPress={toggleMic}
+                disabled={isLoading}
+              >
+                <Ionicons
+                  name={
+                    Platform.OS !== 'web'
+                      ? 'mic-outline'
+                      : isListening ? 'mic' : 'mic-outline'
+                  }
+                  size={22}
+                  color={isListening ? C.red : C.cyan}
+                />
+              </Pressable>
               <TextInput
+                ref={inputRef}
                 style={styles.input}
                 value={input}
                 onChangeText={setInput}
@@ -517,6 +558,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: C.red + '40', marginTop: 12, maxWidth: 280,
   },
   speechErrorText: { flex: 1, color: C.red, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17 },
+  keyboardHintBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: C.cyan + '18', borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: C.cyan + '40', marginTop: 14, maxWidth: 290,
+  },
+  keyboardHintText: { flex: 1, color: C.gray, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
   speechErrorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     backgroundColor: C.redDim + '44', borderTopWidth: 1, borderTopColor: C.red + '30',

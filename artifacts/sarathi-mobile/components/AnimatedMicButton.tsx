@@ -18,9 +18,10 @@ interface Props {
   isListening: boolean;
   onPress: () => void;
   disabled?: boolean;
+  isNative?: boolean;
 }
 
-export function AnimatedMicButton({ isListening, onPress, disabled }: Props) {
+export function AnimatedMicButton({ isListening, onPress, disabled, isNative }: Props) {
   const ring1 = useSharedValue(1);
   const ring2 = useSharedValue(1);
   const ring3 = useSharedValue(1);
@@ -84,11 +85,11 @@ export function AnimatedMicButton({ isListening, onPress, disabled }: Props) {
       <Animated.View style={[styles.ring, styles.ring2, ring2Style, isListening && styles.ringActive]} />
       <Animated.View style={[styles.ring, styles.ring1, ring1Style, isListening && styles.ringActive]} />
       <Pressable onPress={handlePress} disabled={disabled}>
-        <Animated.View style={[styles.button, isListening && styles.buttonActive, btnStyle]}>
+        <Animated.View style={[styles.button, !isNative && isListening && styles.buttonActive, isNative && styles.buttonNative, btnStyle]}>
           <Ionicons
-            name={isListening ? 'mic' : 'mic-outline'}
+            name={isNative ? 'keypad-outline' : isListening ? 'mic' : 'mic-outline'}
             size={36}
-            color={isListening ? C.white : C.cyan}
+            color={isNative ? C.cyan : isListening ? C.white : C.cyan}
           />
         </Animated.View>
       </Pressable>
@@ -123,6 +124,12 @@ const styles = StyleSheet.create({
     borderColor: C.red,
     shadowColor: C.red,
     shadowOpacity: 0.6,
+  },
+  buttonNative: {
+    borderColor: C.cyan,
+    borderStyle: 'dashed' as const,
+    shadowColor: C.cyan,
+    shadowOpacity: 0.25,
   },
   ring: {
     position: 'absolute',
