@@ -1,0 +1,29 @@
+kind = "video"
+previewPath = "/sarathi-story/"
+title = "SARATHI AI — Emergency Care Story"
+description = "A short animated product story showing how SARATHI AI helps people describe symptoms, assess urgency, receive first-aid guidance, find nearby hospitals, and alert family during emergencies."
+version = "1.0.0"
+id = "artifacts/sarathi-story"
+router = "path"
+videoAspectRatio = "16:9"
+
+[[services]]
+name = "web"
+paths = [ "/sarathi-story/" ]
+localPort = 19711
+
+[services.development]
+run = "pnpm --filter @workspace/sarathi-story run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sarathi-story", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sarathi-story/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19711"
+BASE_PATH = "/sarathi-story/"
