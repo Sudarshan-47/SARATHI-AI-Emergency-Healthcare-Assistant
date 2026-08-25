@@ -111,6 +111,24 @@
   }
 }
 
+@media (max-width: 900px) {
+  .triage-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    width: 100% !important;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .triage-panel {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+  }
+}
+
 /* Custom Animations */
 @keyframes pulse-ring {
   0% { transform: scale(0.8); opacity: 0.5; }

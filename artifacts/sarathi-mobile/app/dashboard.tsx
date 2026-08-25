@@ -449,6 +449,23 @@ export default function Dashboard() {
                         : `Describe symptoms in ${user.language}.\nSARATHI will assess severity and guide you.`}
                     </Text>
                   )}
+                  <View style={styles.quickPrompts}>
+                    {[
+                      ['Chest pain', 'heart-outline'],
+                      ['Breathing trouble', 'cloud-outline'],
+                      ['High fever', 'thermometer-outline'],
+                    ].map(([label, icon]) => (
+                      <Pressable
+                        key={label}
+                        style={styles.quickPrompt}
+                        onPress={() => send(label)}
+                        disabled={isLoading}
+                      >
+                        <Ionicons name={icon as any} size={14} color={C.cyan} />
+                        <Text style={styles.quickPromptText}>{label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
               }
               ListFooterComponent={isLoading ? <TypingIndicator /> : null}
@@ -552,6 +569,13 @@ const styles = StyleSheet.create({
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 40 },
   emptyTitle: { fontSize: 18, fontFamily: 'Inter_600SemiBold', color: C.white, marginTop: 20, textAlign: 'center' },
   emptySub: { fontSize: 14, color: C.gray, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 10, lineHeight: 20 },
+  quickPrompts: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 18, maxWidth: 320 },
+  quickPrompt: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderWidth: 1, borderColor: C.navyBorder, backgroundColor: C.navyCard,
+    borderRadius: 20, paddingHorizontal: 11, paddingVertical: 8,
+  },
+  quickPromptText: { color: C.gray, fontFamily: 'Inter_500Medium', fontSize: 12 },
   speechErrorBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 6,
     backgroundColor: C.redDim + '44', borderRadius: 10, padding: 10,

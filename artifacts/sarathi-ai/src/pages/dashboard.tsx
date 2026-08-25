@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Phone, MapPin, Activity, Navigation, HeartPulse, ChevronRight, MessageCircle } from 'lucide-react';
+import { Send, Phone, MapPin, Activity, Navigation, HeartPulse, ChevronRight, MessageCircle, ShieldCheck, Siren } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { useSpeechRecognition, useSpeechSynthesis } from '@/hooks/use-speech';
-import { useTriageSymptoms, useGetFollowupResponse, useGetNearbyHospitals } from '@workspace/api-client-react';
-import type { TriageResponse, ConversationMessage } from '@workspace/api-client-react/src/generated/api.schemas';
+import { useTriageSymptoms, useGetFollowupResponse, useGetNearbyHospitals, getGetNearbyHospitalsQueryKey } from '@workspace/api-client-react';
+import type { TriageResponse, ConversationMessage } from '@workspace/api-client-react';
 import { AnimatedMic } from '@/components/animated-mic';
 import { ChatBubble } from '@/components/chat-bubble';
 import { SeverityBadge } from '@/components/severity-badge';
@@ -39,8 +39,8 @@ export default function Dashboard() {
   const triageMutation = useTriageSymptoms();
   const followupMutation = useGetFollowupResponse();
   const { data: hospitalsData, isLoading: isLoadingHospitals } = useGetNearbyHospitals(
-    { city: 'Hyderabad' }, 
-    { query: { enabled: showHospitals } }
+    { city: 'Hyderabad' },
+    { query: { enabled: showHospitals, queryKey: getGetNearbyHospitalsQueryKey({ city: 'Hyderabad' }) } }
   );
 
   // Speech Hooks
@@ -157,7 +157,7 @@ export default function Dashboard() {
             </div>
           </div>
           
-          <button className="bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-6 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center gap-2 animate-pulse">
+          <button onClick={() => window.location.href = 'tel:108'} aria-label="Call emergency services at 108" className="bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-6 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center gap-2 animate-pulse">
             <Phone className="w-5 h-5" /> 108
           </button>
         </header>
@@ -170,10 +170,23 @@ export default function Dashboard() {
         {/* Chat History */}
         <div className="flex-1 overflow-y-auto p-6 scrollbar-hide z-10">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
-              <Activity className="w-16 h-16 text-accent mb-4" />
-              <h2 className="text-2xl font-display text-white mb-2">How can I help you?</h2>
-              <p className="text-muted-foreground max-w-md">Describe your symptoms clearly. You can type or use the microphone to speak in {user.language}.</p>
+            <div className="h-full flex flex-col items-center justify-center text-center px-4">
+              <div className="mb-6 flex items-center gap-2 rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-accent">
+                <ShieldCheck className="h-3.5 w-3.5" /> Private triage support
+              </div>
+              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl border border-accent/20 bg-accent/10 shadow-lg shadow-accent/10">
+                <Activity className="w-10 h-10 text-accent" />
+              </div>
+              <h2 className="text-3xl font-display text-white mb-3">Tell us what’s happening</h2>
+              <p className="text-muted-foreground max-w-md leading-relaxed">Describe symptoms in your own words. SARATHI will help you understand urgency and the next safest step.</p>
+              <div className="mt-7 flex flex-wrap justify-center gap-2">
+                {['Chest pain', 'Breathing trouble', 'High fever'].map((prompt) => (
+                  <button key={prompt} onClick={() => handleSend(prompt)} className="rounded-full border border-white/10 bg-card/70 px-4 py-2 text-sm text-foreground/80 transition-all hover:border-accent/40 hover:bg-accent/10 hover:text-white">
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-5 flex items-center gap-1.5 text-xs text-muted-foreground"><Siren className="h-3.5 w-3.5 text-primary" /> For immediate danger, call 108 first.</p>
             </div>
           ) : (
             <div className="max-w-4xl mx-auto">
@@ -241,7 +254,7 @@ export default function Dashboard() {
           <motion.div 
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 450, opacity: 1 }}
-            className="h-full bg-card border-l border-white/5 flex flex-col shrink-0 overflow-hidden"
+            className="triage-panel h-full bg-card border-l border-white/5 flex flex-col shrink-0 overflow-hidden"
           >
             <div className="p-6 flex-1 overflow-y-auto scrollbar-hide">
               
@@ -265,8 +278,8 @@ export default function Dashboard() {
                   </div>
                 </div>
                 
-                {currentSeverity === 'CRITICAL' && (
-                  <button className="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold uppercase tracking-wider shadow-lg hover:bg-primary/90 animate-pulse">
+                 {currentSeverity === 'CRITICAL' && (
+                   <button onClick={() => window.location.href = 'tel:108'} className="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold uppercase tracking-wider shadow-lg hover:bg-primary/90 animate-pulse">
                     EMERGENCY: CALL 108 NOW
                   </button>
                 )}
@@ -281,7 +294,7 @@ export default function Dashboard() {
                 
                 <h3 className="text-sm text-muted-foreground uppercase tracking-wider font-semibold mb-3">First Aid Steps</h3>
                 <ul className="space-y-3">
-                  {triageResult.firstAid.map((step, idx) => (
+                  {triageResult.firstAid.map((step: string, idx: number) => (
                     <motion.li 
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
