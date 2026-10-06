@@ -1,0 +1,619 @@
+I want to completely redesign the UI/UX of my existing SARATHI AI Emergency Healthcare Assistant.
+
+IMPORTANT:
+This is a UI/UX redesign, NOT a rebuild of the application.
+
+Before making changes:
+1. Inspect the entire existing project.
+2. Understand the current frontend architecture.
+3. Identify all existing pages, components, routes, API calls and features.
+4. Preserve all existing backend functionality.
+5. Preserve authentication and database functionality.
+6. Do NOT remove or break any existing feature.
+7. Reuse existing functionality and APIs wherever possible.
+
+The goal is to make SARATHI AI look like a modern, premium, production-quality AI healthcare platform that could be shown in a hackathon, portfolio, startup demo or interview.
+
+==================================================
+🎨 NEW DESIGN DIRECTION
+==================================================
+
+Create a completely new visual identity for SARATHI AI.
+
+Design style:
+
+"Premium AI Healthcare + Emergency Technology"
+
+The UI should feel:
+
+- Modern
+- Minimal
+- Trustworthy
+- Intelligent
+- Premium
+- Calm
+- Professional
+- Mobile-friendly
+- Easy to use during emergencies
+
+DO NOT make it look like a generic hospital website.
+
+Avoid:
+- Generic Bootstrap-looking UI
+- Excessive gradients
+- Excessive glassmorphism
+- Huge rounded cards everywhere
+- Too many colors
+- Cartoonish medical illustrations
+- Excessive animations
+- Cluttered dashboards
+
+Use a refined modern SaaS/AI product aesthetic.
+
+==================================================
+🌈 COLOR SYSTEM
+==================================================
+
+Create a consistent design system.
+
+Primary:
+Deep navy / midnight blue
+
+Secondary:
+Teal / cyan
+
+Background:
+Very light cool gray or near-white
+
+Emergency:
+Red
+
+Success:
+Green
+
+Warning:
+Amber
+
+Use colors consistently.
+
+Suggested palette:
+
+--primary: #0B1F33
+--primary-light: #123B5D
+--accent: #14B8A6
+--accent-light: #CCFBF1
+--background: #F7FAFC
+--surface: #FFFFFF
+--text-primary: #102A43
+--text-secondary: #627D98
+--danger: #DC2626
+--warning: #F59E0B
+--success: #16A34A
+--border: #E2E8F0
+
+Do not hard-code colors randomly throughout components.
+
+Create reusable CSS variables/theme tokens.
+
+==================================================
+🧭 GLOBAL NAVIGATION
+==================================================
+
+Create a premium responsive navigation system.
+
+Desktop:
+
+------------------------------------------------
+SARATHI AI logo     Dashboard  Health  Emergency
+                     Hospitals  Appointments
+
+                         🔔   Profile
+------------------------------------------------
+
+Mobile:
+
+------------------------------------------------
+☰    SARATHI AI                 🔔
+------------------------------------------------
+
+Use a clean sidebar/dashboard navigation where appropriate.
+
+Navigation should include existing features such as:
+
+- Dashboard
+- AI Health Assistant
+- Emergency / SOS
+- Health Passport
+- Hospitals
+- Appointments
+- Profile
+- Settings
+
+Only show routes that actually exist or are implemented.
+
+Do not create fake pages.
+
+==================================================
+🤖 SARATHI AI BRANDING
+==================================================
+
+Create a professional SARATHI AI logo/brand treatment.
+
+Brand name:
+
+SARATHI AI
+
+Tagline:
+
+"Your Intelligent Health Companion"
+
+Alternative small tagline:
+
+"AI-powered assistance when it matters."
+
+Use clean typography.
+
+The branding should feel like a real healthcare technology product.
+
+==================================================
+🏠 DASHBOARD REDESIGN
+==================================================
+
+Completely redesign the main dashboard.
+
+Top section:
+
+Good morning, [User Name]
+
+"How can SARATHI help you today?"
+
+Then show a prominent AI assistant search/input:
+
+----------------------------------------------
+🤖 Ask SARATHI
+
+Describe how you're feeling or ask a health
+question...
+
+                         🎤  ➤
+----------------------------------------------
+
+Below that create quick actions:
+
+┌──────────────┐ ┌──────────────┐
+│ 🤖           │ │ 🚨           │
+│ Ask SARATHI  │ │ Emergency    │
+└──────────────┘ └──────────────┘
+
+┌──────────────┐ ┌──────────────┐
+│ 🏥           │ │ 🩺           │
+│ Find Hospital│ │ Health       │
+│              │ │ Passport     │
+└──────────────┘ └──────────────┘
+
+Make Emergency clearly visible but don't make the
+entire dashboard look alarming.
+
+==================================================
+🚨 EMERGENCY UI
+==================================================
+
+The Emergency page must have a completely different
+visual hierarchy because it may be used under stress.
+
+Create:
+
+🚨 EMERGENCY ASSISTANCE
+
+"Get immediate help"
+
+Large primary SOS button.
+
+Below:
+
+[ Call Emergency Contact ]
+
+[ Find Nearby Hospitals ]
+
+[ Show Health Passport ]
+
+[ Share Emergency Location ]
+
+Keep the UI extremely simple.
+
+Use large touch targets.
+
+Make it mobile-first.
+
+Do not overload this page with information.
+
+==================================================
+🩺 HEALTH PASSPORT UI
+==================================================
+
+Create a premium Health Passport card.
+
+Example:
+
+------------------------------------------------
+        🩺 EMERGENCY HEALTH PASSPORT
+
+        Sudarshan Pesingi
+
+        Blood Group
+        O+
+
+        Allergies
+        None specified
+
+        Emergency Contact
+        +91 XXXXX XXXXX
+
+        QR STATUS
+        ● Active
+
+        [ View Passport ]
+        [ Show QR ]
+------------------------------------------------
+
+Add a QR visualization card.
+
+Allow:
+
+- Generate QR
+- Download QR
+- Share
+- Copy emergency link
+- Regenerate QR
+- Disable sharing
+
+Make privacy controls easy to understand.
+
+==================================================
+🤖 AI CHAT UI
+==================================================
+
+Redesign the AI assistant to feel like a premium
+AI product.
+
+Use:
+
+- Clean conversation layout
+- User messages on one side
+- SARATHI responses on the other
+- AI avatar/icon
+- Typing indicator
+- Voice button
+- Attach/input controls where already supported
+- Suggested questions
+
+Example:
+
+------------------------------------------------
+🤖 SARATHI AI
+
+Hello Sudarshan 👋
+
+How can I help you today?
+
+[ I have a headache ]
+[ I have a fever ]
+[ Find a nearby hospital ]
+
+-----------------------------------------------
+Type your health question...
+🎤                              ➤
+------------------------------------------------
+
+Make it visually similar to modern AI assistants,
+but maintain the SARATHI healthcare identity.
+
+==================================================
+🏥 HOSPITAL FINDER
+==================================================
+
+Create a modern hospital discovery interface.
+
+Desktop:
+
+Map on one side
+Hospital cards on the other
+
+Hospital card:
+
+🏥 Apollo / Hospital Name
+
+⭐ Rating
+📍 2.4 km away
+
+Emergency Services
+24/7
+
+[ Directions ]
+[ Call ]
+
+Use existing hospital/location functionality.
+
+Do not introduce fake hospital data.
+
+==================================================
+📱 MOBILE EXPERIENCE
+==================================================
+
+This is extremely important.
+
+Make every page responsive.
+
+Mobile should have:
+
+- Bottom navigation where appropriate
+- Large touch targets
+- Sticky emergency/SOS access where appropriate
+- No horizontal scrolling
+- Readable typography
+- Proper spacing
+- Full-width cards
+- Responsive forms
+
+Test at approximately:
+
+375px
+390px
+430px
+768px
+1024px
+1440px
+
+==================================================
+✨ ANIMATIONS
+==================================================
+
+Use subtle animations.
+
+Examples:
+
+- Card hover
+- Button hover
+- Page transitions
+- AI typing indicator
+- Modal transitions
+- QR generation transition
+- Loading skeletons
+
+Keep animations fast and professional.
+
+DO NOT use excessive bouncing, spinning or flashy animations.
+
+If Framer Motion is already installed, reuse it.
+
+Otherwise don't add unnecessary dependencies unless required.
+
+==================================================
+🧩 COMPONENT SYSTEM
+==================================================
+
+Create reusable components such as:
+
+Button
+Card
+Modal
+Input
+Badge
+Avatar
+Navbar
+Sidebar
+BottomNavigation
+EmergencyButton
+HospitalCard
+HealthPassportCard
+QRCard
+AIMessage
+LoadingSkeleton
+Toast
+Dialog
+
+Do not duplicate styling across pages.
+
+Create a consistent design system.
+
+==================================================
+🔤 TYPOGRAPHY
+==================================================
+
+Use a modern professional font.
+
+Prefer:
+
+Inter
+
+or another clean modern sans-serif if already available.
+
+Hierarchy:
+
+Large:
+Dashboard headings
+
+Medium:
+Section headings
+
+Small:
+Descriptions / metadata
+
+Make text highly readable.
+
+==================================================
+🌙 DARK MODE
+==================================================
+
+Add a proper dark mode if the current application architecture supports it.
+
+Dark theme should use:
+
+Deep navy / charcoal background
+Dark surface cards
+Readable white/gray text
+Teal accent
+Red emergency accent
+
+Do not simply invert colors.
+
+Make dark mode intentionally designed.
+
+==================================================
+🔐 PRIVACY / TRUST UI
+==================================================
+
+Because this is healthcare-related, visually communicate trust.
+
+Add subtle elements such as:
+
+🔒 Your health information is private.
+
+"Only information you choose to share is visible
+through your Emergency Health Passport."
+
+Do not claim certifications or legal compliance unless the
+existing application actually has them.
+
+==================================================
+📊 DASHBOARD INFORMATION HIERARCHY
+==================================================
+
+Avoid showing everything at once.
+
+Priority:
+
+1. AI Assistant
+2. Emergency
+3. Health Passport
+4. Hospitals
+5. Appointments
+6. Other health information
+
+Use whitespace heavily.
+
+The user should understand the dashboard within 3 seconds.
+
+==================================================
+♿ ACCESSIBILITY
+==================================================
+
+Implement:
+
+- Proper contrast
+- Keyboard navigation
+- Visible focus states
+- ARIA labels where needed
+- Accessible buttons
+- Form labels
+- Large touch targets
+- Don't rely only on color to communicate status
+
+==================================================
+⚡ PERFORMANCE
+==================================================
+
+Do not sacrifice performance for visual effects.
+
+Avoid unnecessary:
+- Dependencies
+- Huge images
+- Re-rendering
+- Animation libraries if unnecessary
+
+Optimize images and components.
+
+==================================================
+🚫 VERY IMPORTANT
+==================================================
+
+DO NOT:
+
+- Delete existing functionality
+- Rewrite the backend
+- Change API contracts unnecessarily
+- Remove authentication
+- Remove SOS
+- Remove hospital functionality
+- Remove AI chatbot
+- Remove voice functionality
+- Remove appointments
+- Remove existing database functionality
+- Replace working functionality with mock data
+
+If an existing feature is already working, preserve it.
+
+Only redesign its UI.
+
+==================================================
+🧪 TESTING
+==================================================
+
+After the redesign:
+
+1. Run the application.
+2. Test login.
+3. Test registration.
+4. Test dashboard.
+5. Test AI chatbot.
+6. Test voice functionality.
+7. Test SOS.
+8. Test hospital finder.
+9. Test appointments.
+10. Test Health Passport.
+11. Test QR generation.
+12. Test QR sharing.
+13. Test all existing API calls.
+14. Test mobile responsiveness.
+15. Check browser console for errors.
+16. Fix UI overflow issues.
+17. Fix broken routes.
+18. Fix broken buttons.
+19. Verify existing functionality has not been removed.
+
+==================================================
+🎯 FINAL VISUAL GOAL
+==================================================
+
+The final application should look like a real product from a modern
+health-tech startup.
+
+Think:
+
+Apple-level simplicity
++
+modern AI assistant
++
+healthcare trust
++
+emergency usability
++
+premium SaaS dashboard
+
+The UI should be something I can confidently show during:
+
+- College project demonstration
+- Hackathon
+- Technical interview
+- LinkedIn portfolio
+- GitHub portfolio
+- Resume project demonstration
+
+Before finishing, provide:
+
+1. New theme/design system
+2. Components created
+3. Pages redesigned
+4. Files modified
+5. Dependencies added, if any
+6. Features preserved
+7. Features newly added
+8. Any issues remaining
+
+MOST IMPORTANT:
+
+First inspect the existing application and understand it.
+
+Then redesign it.
+
+Do not blindly replace the existing project with a new template.
