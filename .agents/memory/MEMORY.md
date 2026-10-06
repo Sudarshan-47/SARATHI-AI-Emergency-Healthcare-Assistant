@@ -1,0 +1,1 @@
+- [SARATHI feature boundaries](sarathi-scope.md) — Keep redesigns within shipped flows; do not invent Health Passport, appointments, or clinical/hospital data.

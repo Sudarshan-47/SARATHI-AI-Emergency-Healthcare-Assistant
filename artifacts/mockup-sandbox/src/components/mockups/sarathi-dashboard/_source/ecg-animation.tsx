@@ -2,10 +2,10 @@ import { motion } from 'framer-motion';
 
 export function ECGAnimation({ severity = 'LOW' }: { severity?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' }) {
   const colors = {
-    LOW: '#36836d',
-    MEDIUM: '#a7752d',
-    HIGH: '#966523',
-    CRITICAL: '#bc4545'
+    LOW: '#22c55e',
+    MEDIUM: '#eab308',
+    HIGH: '#f97316',
+    CRITICAL: '#ef4444'
   };
 
   const durations = {
@@ -43,7 +43,7 @@ export function ECGAnimation({ severity = 'LOW' }: { severity?: 'LOW' | 'MEDIUM'
             ease: "linear"
           }}
           style={{
-           filter: `drop-shadow(0 0 3px ${color})`
+            filter: `drop-shadow(0 0 8px ${color})`
           }}
         />
       </svg>

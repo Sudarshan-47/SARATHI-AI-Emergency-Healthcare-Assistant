@@ -21,18 +21,18 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
       label: 'Moderate'
     },
     HIGH: {
-      color: 'text-[#966523]',
-      bg: 'bg-warning/10',
-      border: 'border-warning/40',
-      glow: '',
+      color: 'text-orange-500',
+      bg: 'bg-orange-500/10',
+      border: 'border-orange-500/50',
+      glow: 'shadow-[0_0_15px_rgba(249,115,22,0.4)]',
       icon: AlertCircle,
       label: 'High Risk'
     },
     CRITICAL: {
       color: 'text-destructive',
       bg: 'bg-destructive/10',
-      border: 'border-destructive/50',
-      glow: '',
+      border: 'border-destructive',
+      glow: 'box-glow-primary animate-pulse',
       icon: AlertTriangle,
       label: 'EMERGENCY'
     }
@@ -42,8 +42,8 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 
   return (
     <div className={`flex items-center gap-2 px-4 py-2 rounded-full border ${bg} ${border} ${glow} transition-all duration-300`}>
-      <Icon className={`h-5 w-5 ${color}`} />
-      <span className={`font-display text-sm font-bold tracking-wide ${color}`}>
+      <Icon className={`w-5 h-5 ${color} ${severity === 'CRITICAL' ? 'animate-bounce' : ''}`} />
+      <span className={`font-display font-bold tracking-wider ${color}`}>
         {label}
       </span>
     </div>

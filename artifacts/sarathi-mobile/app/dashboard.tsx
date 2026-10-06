@@ -356,11 +356,8 @@ export default function Dashboard() {
             <Ionicons name="pulse" size={16} color={severityColor} />
           </View>
           <View>
-            <Text style={styles.headerTitle}>SARATHI <Text style={{ color: C.red }}>AI</Text></Text>
-            <Text style={styles.headerSub}>
-              <Text style={[styles.dot, { color: C.green }]}>● </Text>
-              {user.name} • {user.language}
-            </Text>
+            <Text style={styles.headerTitle}>SARATHI <Text style={{ color: C.cyan }}>AI</Text></Text>
+            <Text style={styles.headerSub}>{user.name} • {user.language}</Text>
           </View>
         </View>
         <View style={styles.headerActions}>
@@ -368,6 +365,8 @@ export default function Dashboard() {
             <Pressable
               style={[styles.panelToggle, showPanel === 'result' && { backgroundColor: severityColor + '22' }]}
               onPress={() => setShowPanel(s => s === 'chat' ? 'result' : 'chat')}
+              accessibilityRole="button"
+              accessibilityLabel={showPanel === 'chat' ? 'Show triage results' : 'Return to symptom chat'}
             >
               <Ionicons
                 name={showPanel === 'chat' ? 'shield-half' : 'chatbubbles'}
@@ -376,11 +375,16 @@ export default function Dashboard() {
               />
             </Pressable>
           )}
-          <Pressable style={styles.emergencyFab} onPress={() => Linking.openURL('tel:108')}>
+          <Pressable
+            style={styles.emergencyFab}
+            onPress={() => Linking.openURL('tel:108')}
+            accessibilityRole="link"
+            accessibilityLabel="Call emergency services at 108"
+          >
             <Ionicons name="call" size={16} color={C.white} />
             <Text style={styles.emergencyFabText}>108</Text>
           </Pressable>
-          <Pressable onPress={logout} style={{ padding: 4 }}>
+          <Pressable onPress={logout} style={styles.logoutButton} accessibilityRole="button" accessibilityLabel="Sign out">
             <Ionicons name="log-out-outline" size={20} color={C.gray} />
           </Pressable>
         </View>
@@ -420,11 +424,7 @@ export default function Dashboard() {
                     isNative={Platform.OS !== 'web'}
                   />
                   <Text style={styles.emptyTitle}>
-                    {Platform.OS !== 'web'
-                      ? `Tap mic → use keyboard mic`
-                      : isListening
-                        ? `Listening in ${user.language}…`
-                        : `Tap mic or type in ${user.language}`}
+                    {isListening ? `Listening in ${user.language}…` : `Tell us what’s happening`}
                   </Text>
                   {speechError ? (
                     <View style={styles.speechErrorBox}>
@@ -436,7 +436,7 @@ export default function Dashboard() {
                       <Ionicons name="information-circle-outline" size={15} color={C.cyan} />
                       <Text style={styles.keyboardHintText}>
                         Your keyboard just opened — tap the{' '}
-                        <Text style={{ color: C.cyan }}>🎤 mic icon</Text> on the keyboard to speak in {user.language}
+                        <Text style={{ color: C.cyan }}>microphone icon</Text> on the keyboard to speak in {user.language}
                       </Text>
                       <Animated.View style={{ transform: [{ translateY: hintBounce }] }}>
                         <Ionicons name="arrow-down" size={16} color={C.cyan} />
@@ -445,8 +445,8 @@ export default function Dashboard() {
                   ) : (
                     <Text style={styles.emptySub}>
                       {Platform.OS !== 'web'
-                        ? `Tap the mic button above, then use\nthe 🎤 on your keyboard to speak.`
-                        : `Describe symptoms in ${user.language}.\nSARATHI will assess severity and guide you.`}
+                        ? `Tap the microphone button above, then use your keyboard’s microphone to speak in ${user.language}.`
+                        : `Describe symptoms in ${user.language}. SARATHI can help you understand urgency and the next safest step.`}
                     </Text>
                   )}
                   <View style={styles.quickPrompts}>
@@ -465,6 +465,10 @@ export default function Dashboard() {
                         <Text style={styles.quickPromptText}>{label}</Text>
                       </Pressable>
                     ))}
+                  </View>
+                  <View style={styles.safetyNote}>
+                    <Ionicons name="alert-circle-outline" size={14} color={C.red} />
+                    <Text style={styles.safetyNoteText}>For immediate danger, call 108 first.</Text>
                   </View>
                 </View>
               }
@@ -499,7 +503,7 @@ export default function Dashboard() {
                 style={styles.input}
                 value={input}
                 onChangeText={setInput}
-                placeholder={isListening ? `Listening in ${user.language}…` : `Type in ${user.language}…`}
+                placeholder={isListening ? `Listening in ${user.language}…` : 'Describe your symptoms'}
                 placeholderTextColor={C.grayDark}
                 onSubmitEditing={() => send()}
                 returnKeyType="send"
@@ -538,59 +542,66 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.navy },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
+    paddingHorizontal: 16, paddingVertical: 10,
+    backgroundColor: C.navyCard,
     borderBottomWidth: 1, borderBottomColor: C.navyBorder,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logoMini: {
     width: 36, height: 36, borderRadius: 10,
-    backgroundColor: C.navyCard, borderWidth: 1.5,
+    backgroundColor: C.cyanDim, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
-  headerTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.white, letterSpacing: 0.5 },
-  headerSub: { fontSize: 11, color: C.gray, fontFamily: 'Inter_400Regular', marginTop: 1 },
-  dot: { fontSize: 8 },
+  headerTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.ink, letterSpacing: 0.3 },
+  headerSub: { fontSize: 11, color: C.gray, fontFamily: 'Inter_400Regular', marginTop: 2 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   panelToggle: {
-    width: 34, height: 34, borderRadius: 10,
-    backgroundColor: C.navyCard, alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 11,
+    backgroundColor: C.navyCard, borderWidth: 1, borderColor: C.navyBorder,
+    alignItems: 'center', justifyContent: 'center',
   },
   emergencyFab: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: C.red, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7,
+    minHeight: 44, backgroundColor: C.red, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 8,
   },
   emergencyFabText: { color: C.white, fontFamily: 'Inter_700Bold', fontSize: 13 },
+  logoutButton: {
+    width: 44, height: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: C.navyBorder, backgroundColor: C.navyCard,
+  },
   severityStrip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 16, paddingVertical: 7, borderBottomWidth: 1,
   },
-  severityStripText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  severityStripText: { flex: 1, fontSize: 12, fontFamily: 'Inter_600SemiBold' },
   chatContent: { paddingTop: 16, paddingBottom: 16, flexGrow: 1 },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 18, fontFamily: 'Inter_600SemiBold', color: C.white, marginTop: 20, textAlign: 'center' },
-  emptySub: { fontSize: 14, color: C.gray, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 10, lineHeight: 20 },
-  quickPrompts: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 18, maxWidth: 320 },
+  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 28, paddingHorizontal: 24 },
+  emptyTitle: { fontSize: 24, lineHeight: 30, fontFamily: 'Inter_700Bold', color: C.ink, marginTop: 18, textAlign: 'center' },
+  emptySub: { maxWidth: 360, fontSize: 14, color: C.gray, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 10, lineHeight: 21 },
+  quickPrompts: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 18, maxWidth: 360 },
   quickPrompt: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    borderWidth: 1, borderColor: C.navyBorder, backgroundColor: C.navyCard,
-    borderRadius: 20, paddingHorizontal: 11, paddingVertical: 8,
+    minHeight: 40, borderWidth: 1, borderColor: C.navyBorder, backgroundColor: C.navyCard,
+    borderRadius: 10, paddingHorizontal: 11, paddingVertical: 8,
   },
-  quickPromptText: { color: C.gray, fontFamily: 'Inter_500Medium', fontSize: 12 },
+  quickPromptText: { color: C.ink, fontFamily: 'Inter_500Medium', fontSize: 12 },
+  safetyNote: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16 },
+  safetyNoteText: { color: C.gray, fontFamily: 'Inter_500Medium', fontSize: 11 },
   speechErrorBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 6,
-    backgroundColor: C.redDim + '44', borderRadius: 10, padding: 10,
-    borderWidth: 1, borderColor: C.red + '40', marginTop: 12, maxWidth: 280,
+    backgroundColor: C.redDim, borderRadius: 10, padding: 10,
+    borderWidth: 1, borderColor: C.red + '30', marginTop: 12, maxWidth: 320,
   },
   speechErrorText: { flex: 1, color: C.red, fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17 },
   keyboardHintBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: C.cyan + '18', borderRadius: 12, padding: 12,
-    borderWidth: 1, borderColor: C.cyan + '40', marginTop: 14, maxWidth: 290,
+    backgroundColor: C.cyanDim, borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: C.cyan + '30', marginTop: 14, maxWidth: 320,
   },
-  keyboardHintText: { flex: 1, color: C.gray, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
+  keyboardHintText: { flex: 1, color: C.ink, fontFamily: 'Inter_400Regular', fontSize: 13, lineHeight: 19 },
   speechErrorBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: C.redDim + '44', borderTopWidth: 1, borderTopColor: C.red + '30',
+    backgroundColor: C.redDim, borderTopWidth: 1, borderTopColor: C.red + '30',
     paddingHorizontal: 14, paddingVertical: 8,
   },
   speechErrorBannerText: { flex: 1, color: C.red, fontFamily: 'Inter_400Regular', fontSize: 12 },
@@ -598,23 +609,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-end', gap: 8,
     paddingHorizontal: 12, paddingTop: 10,
     borderTopWidth: 1, borderTopColor: C.navyBorder,
-    backgroundColor: C.navy,
+    backgroundColor: C.navyCard,
   },
   micInline: {
-    width: 42, height: 44, borderRadius: 12,
-    backgroundColor: C.navyCard, borderWidth: 1, borderColor: C.navyBorder,
+    width: 44, height: 44, borderRadius: 11,
+    backgroundColor: C.cyanDim, borderWidth: 1, borderColor: C.navyBorder,
     alignItems: 'center', justifyContent: 'center',
   },
   input: {
     flex: 1,
     backgroundColor: C.navyCard, borderWidth: 1, borderColor: C.navyBorder,
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
-    color: C.white, fontFamily: 'Inter_400Regular', fontSize: 15,
+    borderRadius: 11, paddingHorizontal: 14, paddingVertical: 12,
+    color: C.ink, fontFamily: 'Inter_400Regular', fontSize: 15,
     maxHeight: 100,
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: C.red, alignItems: 'center', justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 11,
+    backgroundColor: C.cyan, alignItems: 'center', justifyContent: 'center',
   },
   resultPanel: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
 });

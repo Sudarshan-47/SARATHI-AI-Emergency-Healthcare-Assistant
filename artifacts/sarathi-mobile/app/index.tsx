@@ -102,11 +102,11 @@ export default function LoginScreen() {
           {/* Logo */}
           <View style={styles.logoRow}>
             <View style={styles.logoBox}>
-              <Ionicons name="pulse" size={28} color={C.red} />
+              <Ionicons name="pulse" size={28} color={C.cyan} />
             </View>
             <View>
               <Text style={styles.logoText}>
-                SARATHI <Text style={{ color: C.red }}>AI</Text>
+                SARATHI <Text style={{ color: C.cyan }}>AI</Text>
               </Text>
               <Text style={styles.logoSub}>Emergency Healthcare Assistant</Text>
             </View>
@@ -121,6 +121,8 @@ export default function LoginScreen() {
                   key={lang.id}
                   style={({ pressed }) => [styles.langCard, pressed && { opacity: 0.75 }]}
                   onPress={() => selectLanguage(lang.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Continue in ${lang.sub}`}
                 >
                   <Text style={styles.langNative}>{lang.native}</Text>
                   <View style={styles.langRight}>
@@ -206,7 +208,7 @@ const field = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    color: C.white,
+    color: C.ink,
     fontFamily: 'Inter_400Regular',
     fontSize: 15,
   },
@@ -216,24 +218,23 @@ const field = StyleSheet.create({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.navy },
-  scroll: { paddingHorizontal: 24, paddingBottom: 20 },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 20, marginBottom: 36 },
+  scroll: { width: '100%', maxWidth: 560, alignSelf: 'center', paddingHorizontal: 24, paddingBottom: 28 },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 24, marginBottom: 38 },
   logoBox: {
     width: 52, height: 52, borderRadius: 14,
-    backgroundColor: C.navyCard, borderWidth: 1.5, borderColor: C.red + '60',
+    backgroundColor: C.cyanDim, borderWidth: 1, borderColor: C.navyBorder,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.red, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
   },
-  logoText: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.white, letterSpacing: 1 },
-  logoSub: { fontSize: 12, color: C.gray, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  stepTitle: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.white, marginBottom: 6 },
-  stepSub: { fontSize: 14, color: C.gray, fontFamily: 'Inter_400Regular', marginBottom: 24 },
+  logoText: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.ink, letterSpacing: 0.3 },
+  logoSub: { fontSize: 12, color: C.gray, fontFamily: 'Inter_400Regular', marginTop: 3 },
+  stepTitle: { fontSize: 27, fontFamily: 'Inter_700Bold', color: C.ink, marginBottom: 8 },
+  stepSub: { fontSize: 14, color: C.gray, fontFamily: 'Inter_400Regular', marginBottom: 24, lineHeight: 21 },
   langCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: C.navyCard, borderRadius: 16, padding: 20, marginBottom: 12,
+    minHeight: 72, backgroundColor: C.navyCard, borderRadius: 14, paddingHorizontal: 18, paddingVertical: 16, marginBottom: 12,
     borderWidth: 1, borderColor: C.navyBorder,
   },
-  langNative: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.white },
+  langNative: { fontSize: 21, fontFamily: 'Inter_700Bold', color: C.ink },
   langRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   langSub: { fontSize: 13, color: C.gray, fontFamily: 'Inter_400Regular' },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 },
@@ -241,8 +242,8 @@ const styles = StyleSheet.create({
   fieldGroup: { fontSize: 11, color: C.gray, fontFamily: 'Inter_600SemiBold', letterSpacing: 1.4, marginBottom: 10, marginTop: 4 },
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: C.red, borderRadius: 14, paddingVertical: 16, marginTop: 24,
-    shadowColor: C.red, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
+    backgroundColor: C.cyan, borderRadius: 12, paddingVertical: 16, marginTop: 24,
+    shadowColor: C.cyan, shadowOpacity: 0.14, shadowRadius: 10, shadowOffset: { width: 0, height: 3 },
   },
   submitText: { color: C.white, fontFamily: 'Inter_700Bold', fontSize: 16 },
 });

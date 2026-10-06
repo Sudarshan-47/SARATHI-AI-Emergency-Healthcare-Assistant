@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Phone, MapPin, Activity, Navigation, HeartPulse, ChevronRight, MessageCircle, ShieldCheck, Siren } from 'lucide-react';
+import { Activity, ArrowUpRight, ChevronDown, HeartPulse, MapPin, MessageCircle, Navigation, Phone, PhoneCall, Send, Siren, X } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { useSpeechRecognition, useSpeechSynthesis } from '@/hooks/use-speech';
 import { useTriageSymptoms, useGetFollowupResponse, useGetNearbyHospitals, getGetNearbyHospitalsQueryKey } from '@workspace/api-client-react';
@@ -17,6 +17,8 @@ const LANG_CODES = {
   telugu: 'te-IN'
 };
 
+const quickPrompts = ['Chest pain', 'Breathing trouble', 'High fever'];
+
 export default function Dashboard() {
   const [, setLocation] = useLocation();
   const { user } = useUser();
@@ -25,25 +27,19 @@ export default function Dashboard() {
   const [triageResult, setTriageResult] = useState<TriageResponse | null>(null);
   const [showHospitals, setShowHospitals] = useState(false);
   const [speechError, setSpeechError] = useState('');
-  
+  const [showTriagePanel, setShowTriagePanel] = useState(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Redirect if no user
   useEffect(() => {
     if (!user) setLocation('/');
   }, [user, setLocation]);
-
   const langCode = user ? LANG_CODES[user.language] : 'en-IN';
-
-  // API Hooks
   const triageMutation = useTriageSymptoms();
   const followupMutation = useGetFollowupResponse();
-  const { data: hospitalsData, isLoading: isLoadingHospitals } = useGetNearbyHospitals(
+  const { data: hospitalsData, isLoading: isLoadingHospitals, isError: hospitalsError, refetch: refetchHospitals } = useGetNearbyHospitals(
     { city: 'Hyderabad' },
     { query: { enabled: showHospitals, queryKey: getGetNearbyHospitalsQueryKey({ city: 'Hyderabad' }) } }
   );
-
-  // Speech Hooks
   const { speak } = useSpeechSynthesis();
   const { isListening, startListening, stopListening } = useSpeechRecognition({
     languageCode: langCode,
@@ -52,22 +48,15 @@ export default function Dashboard() {
       setTextInput(prev => prev ? `${prev} ${text}` : text);
     },
     onError: (err) => {
-      if (err === 'no-speech') {
-        setSpeechError('No speech detected. Try again.');
-      } else if (err === 'not-allowed') {
-        setSpeechError('Microphone access denied. Please allow mic access in your browser.');
-      } else if (err === 'language-not-supported') {
-        setSpeechError(`Voice recognition for ${user?.language ?? 'this language'} is limited in your browser. Please type your symptoms.`);
-      } else if (err === 'network') {
-        setSpeechError('Network error. Check your connection and try again.');
-      } else {
-        setSpeechError('Voice recognition failed. Please type your symptoms.');
-      }
+      if (err === 'no-speech') setSpeechError('No speech detected. Try again.');
+      else if (err === 'not-allowed') setSpeechError('Microphone access denied. Please allow mic access in your browser.');
+      else if (err === 'language-not-supported') setSpeechError(`Voice recognition for ${user?.language ?? 'this language'} is limited in your browser. Please type your symptoms.`);
+      else if (err === 'network') setSpeechError('Network error. Check your connection and try again.');
+      else setSpeechError('Voice recognition failed. Please type your symptoms.');
       setTimeout(() => setSpeechError(''), 5000);
     }
   });
 
-  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -75,16 +64,12 @@ export default function Dashboard() {
   const handleSend = async (textOverride?: string) => {
     const textToSend = textOverride || textInput;
     if (!textToSend.trim() || !user) return;
-
-    // Add user message
     const newMessages = [...messages, { role: 'user', content: textToSend } as ConversationMessage];
     setMessages(newMessages);
     setTextInput('');
     stopListening();
-
     try {
       if (!triageResult) {
-        // First message -> Triage
         const res = await triageMutation.mutateAsync({
           data: {
             symptoms: textToSend,
@@ -94,10 +79,10 @@ export default function Dashboard() {
           }
         });
         setTriageResult(res);
+        setShowTriagePanel(true);
         setMessages([...newMessages, { role: 'assistant', content: res.aiMessage }]);
         speak(res.aiMessage, langCode);
       } else {
-        // Follow up
         const res = await followupMutation.mutateAsync({
           data: {
             answer: textToSend,
@@ -108,17 +93,13 @@ export default function Dashboard() {
           }
         });
         setMessages([...newMessages, { role: 'assistant', content: res.message }]);
-        
-        // Update triage severity if it changed
         if (res.updatedSeverity && res.updatedSeverity !== triageResult.severity) {
           setTriageResult({ ...triageResult, severity: res.updatedSeverity as any });
         }
-        
         speak(res.message, langCode);
       }
     } catch (err) {
       console.error("API Error:", err);
-      // Fallback for UI demonstration if API fails
       const fallbackMsg = "I'm having trouble connecting to the medical network. Please call 108 immediately if this is a severe emergency.";
       setMessages([...newMessages, { role: 'assistant', content: fallbackMsg }]);
       speak(fallbackMsg, langCode);
@@ -133,71 +114,56 @@ export default function Dashboard() {
   };
 
   if (!user) return null;
-
   const currentSeverity = triageResult?.severity || 'LOW';
+  const isPending = triageMutation.isPending || followupMutation.isPending;
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden font-sans">
-      
-      {/* LEFT MAIN CHAT AREA */}
-      <div className="flex-1 flex flex-col relative z-10 border-r border-white/5">
-        
-        {/* Header */}
-        <header className="h-20 glass-panel border-x-0 border-t-0 flex items-center justify-between px-6 z-20 shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-card border border-white/10 flex items-center justify-center shadow-lg relative overflow-hidden">
-               {currentSeverity === 'CRITICAL' && <div className="absolute inset-0 bg-primary/20 animate-pulse" />}
-               <img src={`${import.meta.env.BASE_URL}images/sarathi-logo.png`} alt="Logo" className="w-8 h-8 z-10" />
-            </div>
-            <div>
-              <h1 className="font-display font-bold text-xl text-white tracking-wide">SARATHI <span className="text-primary">AI</span></h1>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span> Online • {user.name}
-              </p>
+    <main className="flex min-h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground lg:h-[100dvh] lg:flex-row">
+      <section className="relative flex min-h-[100dvh] min-w-0 flex-1 flex-col lg:min-h-0" aria-label="Symptom chat">
+        <header className="z-20 flex min-h-[70px] shrink-0 items-center justify-between border-b border-border bg-card/95 px-4 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-accent/10 bg-accent/10 text-accent"><Activity size={22} /></div>
+            <div className="min-w-0">
+              <h1 className="font-display text-base font-bold tracking-[.035em] text-[#1b3540] sm:text-lg">SARATHI <span className="text-accent">AI</span></h1>
+              <p className="flex items-center gap-1.5 truncate text-[11px] text-muted-foreground sm:text-xs"><span className="h-1.5 w-1.5 rounded-full bg-success" /> Ready to help · {user.name}</p>
             </div>
           </div>
-          
-          <button onClick={() => window.location.href = 'tel:108'} aria-label="Call emergency services at 108" className="bg-primary hover:bg-primary/90 text-white font-bold py-2.5 px-6 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all flex items-center gap-2 animate-pulse">
-            <Phone className="w-5 h-5" /> 108
-          </button>
+          <a href="tel:108" aria-label="Call emergency services at 108" className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#e9c7c4] bg-[#fff8f7] px-3.5 text-sm font-bold text-[#a3423e] transition hover:bg-[#fff0ee] sm:px-4" data-testid="link-emergency-108">
+            <PhoneCall size={17} /><span>Emergency</span><span className="rounded-md bg-[#f9e7e4] px-1.5 py-0.5 text-xs">108</span>
+          </a>
         </header>
 
-        {/* Dynamic ECG Line based on severity */}
-        <div className="absolute top-20 left-0 right-0 pointer-events-none opacity-40 z-0">
+        <div className="pointer-events-none absolute left-0 right-0 top-[70px] z-0 opacity-[.13]">
           <ECGAnimation severity={currentSeverity} />
         </div>
 
-        {/* Chat History */}
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-hide z-10">
+        {triageResult && !showTriagePanel && (
+          <button type="button" onClick={() => setShowTriagePanel(true)} className="absolute right-3 top-[82px] z-20 inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-sm transition hover:border-accent/40 hover:text-accent sm:right-6" aria-label="Reopen triage assessment" data-testid="button-open-triage">
+            <Activity size={17} className="text-accent" /> Assessment <ChevronDown size={15} />
+          </button>
+        )}
+
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center px-4">
-              <div className="mb-6 flex items-center gap-2 rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-accent">
-                <ShieldCheck className="h-3.5 w-3.5" /> Private triage support
-              </div>
-              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-3xl border border-accent/20 bg-accent/10 shadow-lg shadow-accent/10">
-                <Activity className="w-10 h-10 text-accent" />
-              </div>
-              <h2 className="text-3xl font-display text-white mb-3">Tell us what’s happening</h2>
-              <p className="text-muted-foreground max-w-md leading-relaxed">Describe symptoms in your own words. SARATHI will help you understand urgency and the next safest step.</p>
-              <div className="mt-7 flex flex-wrap justify-center gap-2">
-                {['Chest pain', 'Breathing trouble', 'High fever'].map((prompt) => (
-                  <button key={prompt} onClick={() => handleSend(prompt)} className="rounded-full border border-white/10 bg-card/70 px-4 py-2 text-sm text-foreground/80 transition-all hover:border-accent/40 hover:bg-accent/10 hover:text-white">
-                    {prompt}
-                  </button>
+            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center py-4 text-center">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-[18px] border border-accent/15 bg-accent/[.08] text-accent sm:mb-6 sm:h-[62px] sm:w-[62px]"><HeartPulse size={30} strokeWidth={1.8} /></div>
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-[.17em] text-accent sm:text-[11px]">A calm first step</p>
+              <h2 className="font-display text-[29px] font-semibold leading-tight tracking-[-.035em] text-[#1b3540] sm:text-4xl">Tell us what’s happening.</h2>
+              <p className="mt-3 max-w-lg text-[13px] leading-6 text-muted-foreground sm:text-sm sm:leading-7">Describe how you’re feeling in your own words. SARATHI can help you understand urgency and the next safest step.</p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2" aria-label="Suggested symptom prompts">
+                {quickPrompts.map((prompt) => (
+                  <button key={prompt} type="button" onClick={() => handleSend(prompt)} disabled={isPending} className="inline-flex min-h-10 items-center rounded-xl border border-border bg-card px-3.5 text-xs font-semibold text-[#48646b] transition hover:border-accent/40 hover:bg-[#f4faf9] hover:text-accent disabled:opacity-60 sm:px-4 sm:text-[13px]" data-testid={`button-prompt-${prompt.toLowerCase().replaceAll(' ', '-')}`}>{prompt}</button>
                 ))}
               </div>
-              <p className="mt-5 flex items-center gap-1.5 text-xs text-muted-foreground"><Siren className="h-3.5 w-3.5 text-primary" /> For immediate danger, call 108 first.</p>
+              <p className="mt-5 flex items-center gap-2 text-[11px] leading-5 text-[#826d55] sm:text-xs"><Siren size={14} className="shrink-0 text-[#a7752d]" /> If someone is in immediate danger, call 108 first.</p>
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto">
-              {messages.map((m, i) => (
-                <ChatBubble key={i} role={m.role} content={m.content} />
-              ))}
-              {(triageMutation.isPending || followupMutation.isPending) && (
-                <div className="flex gap-2 p-4 text-muted-foreground">
-                  <span className="animate-bounce">●</span>
-                  <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>●</span>
-                  <span className="animate-bounce" style={{ animationDelay: '0.4s' }}>●</span>
+            <div className="mx-auto w-full max-w-3xl py-3 sm:py-6">
+              {messages.map((message, i) => <ChatBubble key={i} role={message.role} content={message.content} />)}
+              {isPending && (
+                <div className="mb-5 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground" role="status" aria-live="polite">
+                  <span className="flex gap-1"><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:180ms]" /><i className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent [animation-delay:360ms]" /></span>
+                  SARATHI is preparing a response…
                 </div>
               )}
               <div ref={chatEndRef} />
@@ -205,177 +171,107 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="p-6 glass-panel border-x-0 border-b-0 shrink-0 z-20">
-          <div className="max-w-4xl mx-auto flex flex-col items-center">
-            
-            <AnimatedMic 
-              isListening={isListening} 
-              onClick={isListening ? stopListening : startListening}
-              disabled={triageMutation.isPending || followupMutation.isPending}
-            />
-
-            {speechError && (
-              <p className="text-xs text-primary/90 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 mb-2 text-center max-w-md">
-                ⚠️ {speechError}
-              </p>
-            )}
-
-            {isListening && (
-              <p className="text-xs text-accent mb-2 animate-pulse">
-                🎤 Listening in {user?.language}… speak clearly
-              </p>
-            )}
-            
-            <div className="w-full relative flex items-center">
-              <input
-                value={textInput}
-                onChange={(e) => setTextInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder={isListening ? `Listening in ${user?.language}…` : "Type your symptoms or tap the mic above"}
-                className="w-full bg-card/50 border border-white/10 rounded-2xl pl-6 pr-14 py-4 text-white placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all shadow-inner"
-              />
-              <button 
-                onClick={() => handleSend()}
-                disabled={!textInput.trim() || triageMutation.isPending || followupMutation.isPending}
-                className="absolute right-2 p-3 bg-accent text-accent-foreground rounded-xl hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send className="w-5 h-5" />
+        <div className="z-20 shrink-0 border-t border-border bg-card px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pt-4 lg:px-8">
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-center">
+            <div className="flex min-h-10 items-center gap-2">
+              <AnimatedMic isListening={isListening} onClick={isListening ? stopListening : startListening} disabled={isPending} />
+              {isListening && <p className="text-xs font-medium text-accent" role="status">Listening in {user.language}… speak clearly</p>}
+              {speechError && <p className="max-w-[260px] rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-[#76521f]" role="alert">{speechError}</p>}
+            </div>
+            <div className="flex w-full items-center gap-2 rounded-2xl border border-border bg-background p-1.5 shadow-[0_5px_18px_rgba(30,67,72,.045)] transition focus-within:border-accent/50 focus-within:ring-2 focus-within:ring-accent/10 sm:gap-3 sm:p-2">
+              <label htmlFor="symptom-input" className="sr-only">Describe your symptoms</label>
+              <input id="symptom-input" value={textInput} onChange={(e) => setTextInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder={isListening ? `Listening in ${user.language}…` : 'Describe your symptoms'} className="h-11 min-w-0 flex-1 bg-transparent px-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/75 sm:px-3" data-testid="input-symptoms" />
+              <button type="button" onClick={() => handleSend()} disabled={!textInput.trim() || isPending} aria-label="Send symptoms" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition hover:bg-[#105c5a] disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-send-symptoms">
+                <Send size={18} />
               </button>
             </div>
-            
+            <p className="mt-2 w-full px-1 text-[10px] leading-4 text-muted-foreground sm:text-[11px]">Share only what feels relevant. This does not replace emergency services.</p>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* RIGHT PANEL: Triage & Hospitals */}
       <AnimatePresence>
-        {triageResult && (
-          <motion.div 
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 450, opacity: 1 }}
-            className="triage-panel h-full bg-card border-l border-white/5 flex flex-col shrink-0 overflow-hidden"
+        {triageResult && showTriagePanel && (
+          <motion.aside
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
+            transition={{ duration: .22 }}
+            className="triage-panel flex h-full shrink-0 flex-col overflow-hidden border-l border-border bg-[#fbfdfd] lg:relative lg:w-[370px] xl:w-[400px]"
+            aria-label="Triage assessment"
           >
-            <div className="p-6 flex-1 overflow-y-auto scrollbar-hide">
-              
-              <h2 className="text-lg font-display font-bold text-white mb-6 flex items-center gap-2">
-                <HeartPulse className="w-5 h-5 text-primary" /> Triage Assessment
-              </h2>
-
-              {/* Severity Card */}
-              <div className={`
-                p-6 rounded-2xl border mb-6 relative overflow-hidden
-                ${currentSeverity === 'CRITICAL' ? 'bg-destructive/10 border-destructive box-glow-primary' : 'bg-background/50 border-white/10'}
-              `}>
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Severity</p>
-                    <SeverityBadge severity={currentSeverity} />
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground mb-1 uppercase tracking-wider font-semibold">Confidence</p>
-                    <p className="text-xl font-bold text-white">{triageResult.confidence}%</p>
-                  </div>
-                </div>
-                
-                 {currentSeverity === 'CRITICAL' && (
-                   <button onClick={() => window.location.href = 'tel:108'} className="w-full py-3 mt-4 bg-primary text-white rounded-xl font-bold uppercase tracking-wider shadow-lg hover:bg-primary/90 animate-pulse">
-                    EMERGENCY: CALL 108 NOW
-                  </button>
-                )}
+            <header className="flex min-h-[70px] shrink-0 items-center justify-between border-b border-border bg-card px-5 sm:px-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10 text-accent"><Activity size={19} /></span>
+                <div><h2 className="font-display text-base font-bold text-foreground">Triage assessment</h2><p className="text-[11px] text-muted-foreground">Guidance based on your symptoms</p></div>
               </div>
+              <button type="button" onClick={() => setShowTriagePanel(false)} aria-label="Close triage assessment" className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-foreground" data-testid="button-close-triage"><X size={19} /></button>
+            </header>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+              <section className={`rounded-2xl border p-5 ${currentSeverity === 'CRITICAL' ? 'border-destructive/35 bg-[#fff5f4]' : 'border-border bg-white'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div><p className="mb-2 text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">Severity</p><SeverityBadge severity={currentSeverity} /></div>
+                  <div className="text-right"><p className="mb-2 text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">Confidence</p><p className="font-display text-2xl font-semibold text-foreground">{triageResult.confidence}%</p></div>
+                </div>
+                {currentSeverity === 'CRITICAL' && <a href="tel:108" className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-white transition hover:bg-primary/90" data-testid="link-call-108-critical"><Phone size={17} /> Emergency · Call 108 now</a>}
+              </section>
 
-              {/* First Aid */}
-              <div className="mb-6">
-                <h3 className="text-sm text-muted-foreground uppercase tracking-wider font-semibold mb-3">Immediate Action</h3>
-                <p className="text-white bg-secondary/50 p-4 rounded-xl border border-white/5 mb-4 border-l-4 border-l-accent">
-                  {triageResult.immediateAction}
-                </p>
-                
-                <h3 className="text-sm text-muted-foreground uppercase tracking-wider font-semibold mb-3">First Aid Steps</h3>
-                <ul className="space-y-3">
-                  {triageResult.firstAid.map((step: string, idx: number) => (
-                    <motion.li 
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.1 }}
-                      key={idx} 
-                      className="flex gap-3 bg-background/50 p-3 rounded-xl border border-white/5"
-                    >
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-sm font-bold">
-                        {idx + 1}
-                      </span>
-                      <span className="text-sm text-foreground/90">{step}</span>
+              <section className="mt-5">
+                <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[.12em] text-muted-foreground">Immediate action</h3>
+                <p className="rounded-xl border border-accent/15 border-l-[3px] border-l-accent bg-[#edf6f4] p-4 text-sm leading-6 text-[#29474e]">{triageResult.immediateAction}</p>
+                <h3 className="mb-3 mt-5 text-[11px] font-bold uppercase tracking-[.12em] text-muted-foreground">First-aid steps</h3>
+                <ol className="space-y-2.5">
+                  {triageResult.firstAid.map((step, idx) => (
+                    <motion.li initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * .06 }} key={idx} className="flex gap-3 rounded-xl border border-border bg-white p-3.5">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-xs font-bold text-accent">{idx + 1}</span>
+                      <span className="pt-0.5 text-[13px] leading-5 text-[#38535a]">{step}</span>
                     </motion.li>
                   ))}
-                </ul>
-              </div>
+                </ol>
+              </section>
 
-              {/* WhatsApp Alert */}
-              <div className="mb-8">
-                <button 
-                  onClick={handleWhatsAppAlert}
-                  className="w-full py-4 px-6 bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 rounded-2xl flex items-center justify-between transition-colors group"
-                >
-                  <div className="flex items-center gap-3 text-left">
-                    <MessageCircle className="w-6 h-6 text-[#25D366]" />
-                    <div>
-                      <p className="text-white font-semibold">Alert Parents</p>
-                      <p className="text-xs text-muted-foreground">Send auto-generated WhatsApp</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-[#25D366] transition-transform group-hover:translate-x-1" />
-                </button>
-              </div>
-
-              {/* Hospitals Toggle */}
-              <button 
-                onClick={() => setShowHospitals(!showHospitals)}
-                className="w-full py-4 glass-panel rounded-2xl flex items-center justify-center gap-2 hover:bg-card/80 transition-colors border-white/10 text-white font-semibold"
-              >
-                <MapPin className="w-5 h-5 text-accent" /> 
-                {showHospitals ? 'Hide Nearby Hospitals' : 'Find Nearby Hospitals'}
+              <button type="button" onClick={handleWhatsAppAlert} className="mt-5 flex min-h-[60px] w-full items-center justify-between rounded-xl border border-[#c9e3d2] bg-[#f3faf5] px-4 text-left transition hover:bg-[#eaf6ed]" data-testid="button-alert-guardian">
+                <span className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#e3f2e8] text-[#36836d]"><MessageCircle size={19} /></span><span><span className="block text-sm font-bold text-foreground">Alert parent / guardian</span><span className="mt-0.5 block text-[11px] text-muted-foreground">Send a WhatsApp message</span></span></span><ArrowUpRight size={17} className="text-[#36836d]" />
               </button>
 
-              {/* Hospitals List */}
+              <button type="button" onClick={() => setShowHospitals(!showHospitals)} aria-expanded={showHospitals} className="mt-3 flex min-h-[50px] w-full items-center justify-center gap-2 rounded-xl border border-border bg-white text-sm font-semibold text-[#38535a] transition hover:border-accent/35 hover:bg-[#f6fbfa]" data-testid="button-nearby-hospitals">
+                <MapPin size={17} className="text-accent" />{showHospitals ? 'Hide nearby hospitals' : 'Find nearby hospitals'}
+              </button>
+
               <AnimatePresence>
                 {showHospitals && (
-                  <motion.div 
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="mt-4 space-y-4 overflow-hidden"
-                  >
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-3 space-y-3 overflow-hidden">
                     {isLoadingHospitals ? (
-                      <div className="p-8 text-center text-muted-foreground">Scanning nearby facilities...</div>
-                    ) : (
-                      hospitalsData?.hospitals.map((hospital) => (
-                        <div key={hospital.id} className="bg-background/80 p-4 rounded-2xl border border-white/5 hover:border-accent/30 transition-colors">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-bold text-white text-sm">{hospital.name}</h4>
-                            <span className="text-xs font-semibold px-2 py-1 rounded-full bg-secondary text-accent">{hospital.distance}</span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-3">{hospital.speciality}</p>
-                          
-                          <div className="flex gap-2 mt-4">
-                            <a href={`tel:${hospital.phone}`} className="flex-1 bg-secondary hover:bg-secondary/80 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors">
-                              <Phone className="w-3 h-3" /> Call
-                            </a>
-                            <a href={hospital.mapsUrl} target="_blank" rel="noreferrer" className="flex-1 bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20 text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors">
-                              <Navigation className="w-3 h-3" /> Directions
-                            </a>
-                          </div>
+                      <div className="space-y-2 rounded-xl border border-border bg-white p-4" role="status" aria-label="Loading nearby hospitals">
+                        <div className="h-3 w-2/3 animate-pulse rounded bg-secondary" /><div className="h-3 w-1/2 animate-pulse rounded bg-secondary" /><div className="h-9 w-full animate-pulse rounded-lg bg-secondary" />
+                      </div>
+                    ) : hospitalsError ? (
+                      <div className="rounded-xl border border-border bg-white p-4 text-center">
+                        <p className="text-sm font-semibold text-foreground">Hospitals couldn’t be loaded</p><p className="mt-1 text-xs text-muted-foreground">Check your connection and try again.</p>
+                        <button type="button" onClick={() => void refetchHospitals()} className="mt-3 min-h-10 rounded-lg bg-accent px-4 text-xs font-bold text-white hover:bg-[#105c5a]" data-testid="button-retry-hospitals">Try again</button>
+                      </div>
+                    ) : hospitalsData?.hospitals.length ? hospitalsData.hospitals.map((hospital) => (
+                      <article key={hospital.id} className="rounded-xl border border-border bg-white p-4 transition hover:border-accent/25" data-testid={`card-hospital-${hospital.id}`}>
+                        <div className="flex items-start justify-between gap-2"><h4 className="text-sm font-bold leading-5 text-foreground">{hospital.name}</h4><span className="shrink-0 rounded-full bg-accent/10 px-2 py-1 text-[10px] font-bold text-accent">{hospital.distance}</span></div>
+                        <p className="mt-1 text-xs text-muted-foreground">{hospital.speciality}</p>
+                        <div className="mt-3 flex gap-2">
+                          <a href={`tel:${hospital.phone}`} className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-secondary text-xs font-bold text-foreground transition hover:bg-secondary/80"><Phone size={14} /> Call</a>
+                          <a href={hospital.mapsUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-accent/15 bg-accent/[.06] text-xs font-bold text-accent transition hover:bg-accent/10"><Navigation size={14} /> Directions</a>
                         </div>
-                      ))
+                      </article>
+                    )) : (
+                      <div className="rounded-xl border border-dashed border-border bg-white p-5 text-center"><MapPin size={20} className="mx-auto text-muted-foreground" /><p className="mt-2 text-sm font-semibold text-foreground">No facilities found</p><p className="mt-1 text-xs text-muted-foreground">No nearby hospitals were returned for Hyderabad.</p></div>
                     )}
                   </motion.div>
                 )}
               </AnimatePresence>
-
             </div>
-          </motion.div>
+            <footer className="shrink-0 border-t border-border bg-card px-5 py-3 text-center text-[10px] leading-4 text-muted-foreground sm:px-6">
+              This guidance does not replace professional medical care.
+            </footer>
+          </motion.aside>
         )}
       </AnimatePresence>
-    </div>
+    </main>
   );
 }

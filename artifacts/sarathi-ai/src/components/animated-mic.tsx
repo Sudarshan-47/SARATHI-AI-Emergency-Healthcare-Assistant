@@ -9,31 +9,31 @@ interface AnimatedMicProps {
 
 export function AnimatedMic({ isListening, onClick, disabled }: AnimatedMicProps) {
   return (
-    <div className="relative flex items-center justify-center w-32 h-32 my-8">
-      {/* Outer pulsing rings when active */}
+    <div className="relative flex h-10 items-center justify-center">
       {isListening && (
         <>
-          <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse-ring" />
-          <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse-ring-delayed" />
+          <div className="absolute inset-0 rounded-full bg-accent/15 animate-pulse-ring" />
+          <div className="absolute inset-0 rounded-full bg-accent/15 animate-pulse-ring-delayed" />
         </>
       )}
-      
-      {/* Main Button */}
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={onClick}
         disabled={disabled}
+        type="button"
+        aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+        aria-pressed={isListening}
         className={`
-          relative z-10 w-20 h-20 rounded-full flex items-center justify-center
-          shadow-xl transition-colors duration-300
+          relative z-10 flex h-10 w-10 items-center justify-center rounded-xl
+          transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2
           ${isListening 
-            ? 'bg-primary text-white box-glow-primary' 
-            : 'bg-card border border-white/10 text-accent hover:bg-card/80 hover:text-white'}
+            ? 'bg-accent text-white shadow-sm' 
+            : 'border border-accent/15 bg-accent/[.07] text-accent hover:bg-accent/15'}
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
       >
-        <Mic className={`w-8 h-8 ${isListening ? 'animate-pulse' : ''}`} />
+        <Mic className={`h-[18px] w-[18px] ${isListening ? 'animate-pulse' : ''}`} />
       </motion.button>
     </div>
   );
